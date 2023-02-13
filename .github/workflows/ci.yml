@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches: "main"
+    paths:
+      - "**.rs"
+      - "**.toml"
+      - "Cargo.lock"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_call:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:    
+  validate-pull:
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft }}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Cargo Cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
+          target/
+        key: ${{ runner.os }}-cargo-cache-${{ hashFiles('Cargo.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-cache-
+          ${{ runner.os }}-cargo-
+          ${{ runner.os }}-
+    - run: rustup component add clippy --toolchain stable
+    - name: Validate Formatting
+      run: cargo fmt --check --verbose
+    - name: Validate Clippy
+      run: cargo clippy -- -D warnings --verbose
+    - name: Validate Standard Tests
+      run: cargo test --verbose
